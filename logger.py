@@ -2,11 +2,13 @@
 This module provides functionality to log RPM, Torque, and Power data from a GPIO encoder.
 """
 
-from queue import Queue
-from typing import List, Tuple, Optional
+import math
 from datetime import datetime
-import settings
+from queue import Queue
 from threading import Thread
+from typing import List, Optional, Tuple
+
+import settings
 
 
 class Logger:
@@ -36,7 +38,7 @@ class Logger:
     ) -> Tuple[float, float, float, float]:
         """Compute RPM, Torque, and Power from the encoder data."""
         rpm: float = 60 * 1e9 / delta_ns
-        omega: float = (2 * 3.14159 * rpm) / 60
+        omega: float = (2 * math.pi * rpm) / 60
         now_s: float = now_ns / 1e9
 
         if self.prev_omega is not None and self.prev_time_s is not None:
