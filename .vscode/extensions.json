@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "ms-python.python", // Core Python support
+        "ms-python.vscode-pylance", // Pylance for fast IntelliSense
+        "ms-python.black-formatter", // Black code formatter
+        "ms-python.isort", // isort for import sorting
+        "ms-python.flake8", // Alternative to pylint (optional)
+        "ms-python.pylint", // Pylint linter
+        "ms-toolsai.jupyter" // Jupyter Notebook support (optional)
+    ]
+}
