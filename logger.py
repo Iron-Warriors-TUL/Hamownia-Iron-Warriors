@@ -9,6 +9,7 @@ from threading import Thread
 from typing import List, Optional, Tuple
 
 import settings
+import csv
 
 
 class Logger:
@@ -22,7 +23,7 @@ class Logger:
     timestamp_log: List[float] = []
 
     def __init__(self) -> None:
-        self.log_file = f"log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        self.log_file = f"log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         self.prev_omega: Optional[float] = None
         self.prev_time_s: Optional[float] = None
         self.thread = Thread(target=self.queue_writer, daemon=True)
@@ -57,8 +58,12 @@ class Logger:
 
     def queue_writer(self) -> None:
         """Write the logged data to a file."""
-        with open(self.log_file, "w", encoding="utf-8") as file:
-            file.write("Index\tRPM\tΔt(ns)\tω(rad/s)\tTorque(Nm)\tPower(W)\n")
+
+        with open(self.log_file, "w", newline="", encoding="utf-8") as file:
+            csv_writer = csv.writer(file)
+            csv_writer.writerow(
+                ["Index", "RPM", "Δt(ns)", "ω(rad/s)", "Torque(Nm)", "Power(W)"]
+            )
 
             while True:
                 pulse_idx, delta_ns, now_ns = self.data_queue.get()
@@ -66,8 +71,15 @@ class Logger:
                     continue
 
                 rpm, omega, torque, power = self.compute_data(delta_ns, now_ns)
-                file.write(
-                    f"{pulse_idx}\t{rpm:.2f}\t{delta_ns:.2f}\t{omega:.2f}\t{torque:.3f}\t{power:.2f}\n"
+                csv_writer.writerow(
+                    [
+                        pulse_idx,
+                        f"{rpm:.2f}",
+                        f"{delta_ns:.2f}",
+                        f"{omega:.2f}",
+                        f"{torque:.3f}",
+                        f"{power:.2f}",
+                    ]
                 )
                 file.flush()
                 self.rpm_log.append(rpm)
