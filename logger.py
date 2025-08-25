@@ -3,13 +3,11 @@ This module provides functionality to log RPM, Torque, and Power data from a GPI
 """
 
 import math
-from datetime import datetime
 from queue import Queue
 from threading import Thread
 from typing import List, Optional, Tuple
-
-import settings
 import csv
+import settings
 
 
 class Logger:
@@ -23,23 +21,25 @@ class Logger:
     timestamp_log: List[float] = []
 
     def __init__(self) -> None:
-        self.log_file = f"log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        self.log_file = settings.LOG_FILE
         self.prev_omega: Optional[float] = None
         self.prev_time_s: Optional[float] = None
         self.thread = Thread(target=self.queue_writer, daemon=True)
         self.thread.start()
 
-    def enque_data(self, pulse_idx: int, delta_ns: int, now_ns: int) -> None:
-        """Enqueue data for processing."""
+    def enque_data(self, pulses: int, delta_ns: int, now_ns: int) -> None:
+        """Enqueue pulse count and timing for processing."""
         if self.recording_active:
-            self.data_queue.put((pulse_idx, delta_ns, now_ns))
+            self.data_queue.put((pulses, delta_ns, now_ns))
 
     def compute_data(
-        self, delta_ns: int, now_ns: int
+        self, pulses: int, delta_ns: int, now_ns: int
     ) -> Tuple[float, float, float, float]:
-        """Compute RPM, Torque, and Power from the encoder data."""
-        rpm: float = 60 * 1e9 / delta_ns
-        omega: float = (2 * math.pi * rpm) / 60
+        """Compute RPM, Torque, and Power from pulse count in a window."""
+        window_s = delta_ns / 1e9
+        freq_hz = pulses / window_s
+        rpm: float = freq_hz * 60
+        omega: float = 2 * math.pi * freq_hz
         now_s: float = now_ns / 1e9
 
         if self.prev_omega is not None and self.prev_time_s is not None:
@@ -49,8 +49,7 @@ class Logger:
                 settings.MOMENT_OF_INERTIA * delta_omega / delta_t if delta_t > 0 else 0
             )
         else:
-            torque: float = 0
-            delta_t: float = 0
+            torque = 0
 
         power: float = torque * omega
 
@@ -62,18 +61,18 @@ class Logger:
         with open(self.log_file, "w", newline="", encoding="utf-8") as file:
             csv_writer = csv.writer(file)
             csv_writer.writerow(
-                ["Index", "RPM", "Δt(ns)", "ω(rad/s)", "Torque(Nm)", "Power(W)"]
+                ["Pulses", "RPM", "Δt(ns)", "ω(rad/s)", "Torque(Nm)", "Power(W)"]
             )
 
             while True:
-                pulse_idx, delta_ns, now_ns = self.data_queue.get()
+                pulses, delta_ns, now_ns = self.data_queue.get()
                 if not self.recording_active:
                     continue
 
-                rpm, omega, torque, power = self.compute_data(delta_ns, now_ns)
+                rpm, omega, torque, power = self.compute_data(pulses, delta_ns, now_ns)
                 csv_writer.writerow(
                     [
-                        pulse_idx,
+                        pulses,
                         f"{rpm:.2f}",
                         f"{delta_ns:.2f}",
                         f"{omega:.2f}",
